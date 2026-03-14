@@ -1,23 +1,41 @@
-# EVE Frontier Turret Watcher
+# EVE Frontier Turret Control Bot
 
-A lightweight Discord notification service for EVE Frontier Smart Turrets, built for the EVE Frontier x Sui Hackathon 2026.
+A Discord bot and chain watcher for EVE Frontier Smart Turrets, built for the EVE Frontier x Sui Hackathon 2026.
 
 ## Overview
 
-This service polls the Sui blockchain for aggression events emitted by the [EVE Frontier Smart Turret Extension](https://github.com/Epeon/eve-frontier-turret-extension) and sends real-time Discord webhook alerts when your turret detects an attacker.
+This bot provides a two-way control panel for EVE Frontier Smart Turrets via Discord. It watches the Sui blockchain for aggression events and posts real-time alerts, while also allowing turret owners to change targeting modes and configure friendly tribes directly from Discord slash commands.
 
 ## Features
 
-- **Real-time alerts** — polls the Sui chain every 5 seconds for aggression events
-- **Discord webhooks** — rich embed notifications with attacker details
-- **Zero dependencies** — uses Node.js native fetch, no heavy SDK required
-- **Configurable** — set your own package ID, webhook URL, and poll interval via .env
+- **Slash command control** - change turret mode and friendly tribe from Discord
+- **Real-time aggression alerts** - Discord embeds when your turret detects an attacker
+- **On-chain transactions** - mode changes submit real Sui blockchain transactions
+- **Status dashboard** - view current turret extension configuration at a glance
+
+## Slash Commands
+
+| Command | Description |
+|---------|-------------|
+| `/setmode` | Set targeting mode (Whitelist, Aggressor, or Sentry) |
+| `/settribe` | Set the friendly tribe ID that the turret will never fire on |
+| `/setalertchannel` | Set the current channel to receive aggression alerts |
+| `/status` | Show current turret extension configuration |
+
+## Targeting Modes
+
+| Mode | Behavior |
+|------|----------|
+| Whitelist | Shoots everyone except the configured friendly tribe |
+| Aggressor | Only shoots players who have attacked first |
+| Sentry | Passive until attacked, then engages aggressors only |
 
 ## Requirements
 
 - Node.js v18+
 - A deployed instance of the EVE Frontier Turret Extension
-- A Discord webhook URL
+- A Discord bot token
+- A Discord server
 
 ## Installation
 ```bash
@@ -35,63 +53,59 @@ cp .env.example .env
 
 Edit `.env`:
 ```
-PACKAGE_ID=0xd089c5c7d94951106cb578e55950f9357dc9c50b14e8f2e8b9bb4d5fddd43ac5
-DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your/webhook
+PACKAGE_ID=your_package_id
+EXTENSION_CONFIG_ID=your_extension_config_id
+ADMIN_CAP_ID=your_admin_cap_id
+DISCORD_BOT_TOKEN=your_discord_bot_token
+DISCORD_WEBHOOK_URL=your_webhook_url
 POLL_INTERVAL_MS=5000
+SUI_PRIVATE_KEY=your_sui_private_key
 ```
 
-### Getting a Discord Webhook URL
+## Creating a Discord Bot
 
-1. Open your Discord server
-2. Go to **Server Settings → Integrations → Webhooks**
-3. Click **New Webhook**
-4. Choose a channel and copy the webhook URL
-5. Paste it into your `.env` file
+1. Go to https://discord.com/developers/applications
+2. Click **New Application** and name it
+3. Click **Bot** and reset/copy your token
+4. Enable **Message Content Intent** under Privileged Gateway Intents
+5. Go to **OAuth2 > URL Generator**, select `bot` and `applications.commands` scopes
+6. Select permissions: Send Messages, Embed Links, Use Slash Commands
+7. Copy the generated URL and open it to invite the bot to your server
 
 ## Usage
+
+Start the event watcher and bot:
 ```bash
-node index.js
+node index.js    # chain watcher only
+node bot.js      # Discord bot with slash commands and alerts
 ```
 
-Example output:
-```
-Turret watcher started. Monitoring: 0xd089...
-Aggression event: {
-  "turret_id": "0x1234...",
-  "attacker_tribe": 5001
-}
-Discord alert sent!
-```
+In Discord:
+1. Run `/setalertchannel` in the channel where you want alerts
+2. Run `/setmode` and select your targeting mode
+3. Run `/settribe` and enter your friendly tribe ID
+4. Run `/status` to confirm everything is configured
 
-## Discord Alert Format
+## Deployed Contracts (Testnet)
 
-When an aggressor is detected, the watcher posts a rich embed to your Discord channel:
-```
-🚨 Turret Aggression Detected!
-Turret ID:      0x1234...
-Attacker Tribe: 5001
-Time:           Thu, 13 Mar 2026 00:00:00 GMT
-```
+| Object | ID |
+|--------|----|
+| Package | `0xd089c5c7d94951106cb578e55950f9357dc9c50b14e8f2e8b9bb4d5fddd43ac5` |
+| ExtensionConfig | `0x298e700b7b00a16473798c79c4f24bc71ffb6f38bf34166ca29f875eb266841c` |
+| AdminCap | `0xca77365947d1187e503fdadd3ccff1647776b05f776ec2fbfe2e40ec230a09e4` |
 
 ## How It Works
 
-1. The turret extension emits an `AggressionDetectedEvent` on-chain whenever a confirmed attacker enters targeting range
-2. This service polls the Sui RPC endpoint for new events matching your package ID
-3. When an event is found, it formats the data and sends a Discord webhook notification
-4. The cursor is tracked so events are never processed twice
-
-## Architecture
-```
-index.js          # Main polling loop and Discord webhook sender
-.env              # Configuration (not committed)
-.env.example      # Example configuration template
-```
+1. The turret extension emits `AggressionDetectedEvent` on-chain when an attacker enters range
+2. The bot polls the Sui RPC every 5 seconds for new events
+3. When an event is found it posts a rich embed alert to your Discord alert channel
+4. Slash commands use the Sui CLI to sign and submit transactions that update turret configuration on-chain
 
 ## Related
 
-- [EVE Frontier Turret Extension](https://github.com/Epeon/eve-frontier-turret-extension) — the on-chain smart contract this service monitors
-- [EVE Frontier](https://evefrontier.com) — the game
-- [Sui Blockchain](https://sui.io) — the chain everything runs on
+- [EVE Frontier Turret Extension](https://github.com/Epeon/eve-frontier-turret-extension) - the on-chain smart contract
+- [EVE Frontier](https://evefrontier.com) - the game
+- [Sui Blockchain](https://sui.io) - the chain everything runs on
 
 ## Hackathon
 
